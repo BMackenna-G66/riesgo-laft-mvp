@@ -1,0 +1,63 @@
+# Parámetros del modelo de segmentación LA/FT/FPADM
+# Versión: 1.0.0
+
+model:
+  version: "1.0.0"
+  run_date_field: "fecha_calculo"
+
+# Pesos por factor (deben sumar 1.0)
+weights:
+  clientes: 0.40
+  jurisdicciones: 0.30
+  productos: 0.15
+  canales: 0.15
+
+# Umbrales de clasificación de nivel de riesgo (score 0.0 a 1.0)
+risk_levels:
+  bajo:
+    min: 0.00
+    max: 0.33
+    label: "Bajo"
+  medio:
+    min: 0.34
+    max: 0.66
+    label: "Medio"
+  alto:
+    min: 0.67
+    max: 1.00
+    label: "Alto"
+
+# Clustering clientes
+clustering:
+  algorithm: "kmeans"
+  n_clusters: 3
+  random_state: 42
+  max_iter: 300
+  # Mapeo de cluster a nivel de riesgo por centroide (se recalcula en cada corrida)
+  # 0 = menor score_composite → Bajo
+  # 1 = score_composite intermedio → Medio
+  # 2 = mayor score_composite → Alto
+
+# Features numéricas usadas en KMeans (deben existir en el DataFrame de features)
+feature_columns:
+  - trx_180d_norm
+  - volume_usd_180d_norm
+  - avg_ticket_usd_180d_norm
+  - max_ticket_usd_180d_norm
+  - rejection_rate_180d_norm
+  - unique_external_funders_180d_norm
+  - unique_beneficiaries_180d_norm
+  - unique_destiny_countries_180d_norm
+  - unique_currencies_180d_norm
+  - unique_payment_methods_180d_norm
+
+# Tratamiento de outliers (IQR)
+outliers:
+  method: "iqr"
+  factor: 3.0    # valores > Q3 + factor*IQR son capados en el percentil 99
+
+# Ventana temporal principal en días
+lookback_days: 180
+
+# Columna de identificador de cliente
+customer_id_col: "customer_id"

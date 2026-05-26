@@ -1,0 +1,58 @@
+# Scoring parametrizable de Canales — Factor 4
+# Escala de score_experto: 0.0 (riesgo bajo) a 1.0 (riesgo alto)
+# ponderacion: peso relativo del canal
+
+channels:
+  - canal: "App móvil"
+    uso: "alto"
+    objetivo: "operaciones y consultas"
+    origen_transaccion: "digital"
+    alcance_geografico: "internacional"
+    permite_pago_terceros: true
+    limites_por_tipo_cliente: true
+    cifrado: true
+    doble_factor: true
+    controles_intrusion: true
+    score_experto: 0.40
+    ponderacion: 0.45
+
+  - canal: "Web (browser)"
+    uso: "medio"
+    objetivo: "operaciones y consultas"
+    origen_transaccion: "digital"
+    alcance_geografico: "internacional"
+    permite_pago_terceros: true
+    limites_por_tipo_cliente: true
+    cifrado: true
+    doble_factor: true
+    controles_intrusion: true
+    score_experto: 0.45
+    ponderacion: 0.30
+
+  - canal: "API B2B"
+    uso: "medio"
+    objetivo: "integración empresas"
+    origen_transaccion: "programático"
+    alcance_geografico: "internacional"
+    permite_pago_terceros: true
+    limites_por_tipo_cliente: false
+    cifrado: true
+    doble_factor: false
+    controles_intrusion: true
+    score_experto: 0.60
+    ponderacion: 0.15
+
+  - canal: "Agente / presencial"
+    uso: "bajo"
+    objetivo: "atención clientes"
+    origen_transaccion: "presencial"
+    alcance_geografico: "local"
+    permite_pago_terceros: false
+    limites_por_tipo_cliente: true
+    cifrado: false
+    doble_factor: false
+    controles_intrusion: false
+    score_experto: 0.70
+    ponderacion: 0.10
+
+# Score final de canales = suma(score_experto * ponderacion) / suma(ponderaciones activas)

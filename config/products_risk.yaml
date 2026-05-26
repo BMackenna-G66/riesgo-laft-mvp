@@ -1,0 +1,61 @@
+# Scoring parametrizable de Productos — Factor 3
+# Escala de score_experto: 0.0 (riesgo bajo) a 1.0 (riesgo alto)
+# ponderacion: peso relativo del producto dentro del portfolio
+
+products:
+  - producto: "Remesas internacionales"
+    tipo: "transaccional"
+    es_transaccional: true
+    accesibilidad: "alta"
+    publico_objetivo: "personas y empresas"
+    identificacion_plena: true
+    controles_laft_automatizados: true
+    antecedentes_laft: true
+    score_experto: 0.85
+    ponderacion: 0.40
+
+  - producto: "Transferencias nacionales"
+    tipo: "transaccional"
+    es_transaccional: true
+    accesibilidad: "alta"
+    publico_objetivo: "personas y empresas"
+    identificacion_plena: true
+    controles_laft_automatizados: true
+    antecedentes_laft: false
+    score_experto: 0.45
+    ponderacion: 0.25
+
+  - producto: "Cambio de divisas"
+    tipo: "transaccional"
+    es_transaccional: true
+    accesibilidad: "media"
+    publico_objetivo: "personas y empresas"
+    identificacion_plena: true
+    controles_laft_automatizados: true
+    antecedentes_laft: true
+    score_experto: 0.70
+    ponderacion: 0.20
+
+  - producto: "Cuenta de pago"
+    tipo: "pasivo"
+    es_transaccional: false
+    accesibilidad: "alta"
+    publico_objetivo: "personas"
+    identificacion_plena: true
+    controles_laft_automatizados: true
+    antecedentes_laft: false
+    score_experto: 0.35
+    ponderacion: 0.10
+
+  - producto: "Pagos B2B"
+    tipo: "transaccional"
+    es_transaccional: true
+    accesibilidad: "media"
+    publico_objetivo: "empresas"
+    identificacion_plena: true
+    controles_laft_automatizados: true
+    antecedentes_laft: false
+    score_experto: 0.55
+    ponderacion: 0.05
+
+# Score final de productos = suma(score_experto * ponderacion) / suma(ponderaciones activas)
