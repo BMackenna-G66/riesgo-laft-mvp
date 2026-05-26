@@ -36,6 +36,14 @@ jobs:
           cd scripts
           python pipeline.py
 
+      - name: Commit docs/data/results.json (actualiza dashboard)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data/results.json outputs/model_centroids.json
+          git diff --staged --quiet || git commit -m "data: actualiza results.json y centroides [skip ci]"
+          git push
+
       - name: Upload outputs
         uses: actions/upload-artifact@v4
         if: always()

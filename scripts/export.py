@@ -3,19 +3,24 @@
 Exportación de resultados:
 1. Excel con 4 pestañas: features, resultados clientes, resumen segmentos, score final
 2. Resumen ejecutivo en texto plano (.txt)
+3. docs/data/results.json para el dashboard GitHub Pages
 """
 
+import json
 import logging
 from datetime import date
 from pathlib import Path
 from typing import List
 
 import pandas as pd
+import yaml
 
 log = logging.getLogger("export")
 
 ROOT = Path(__file__).parent.parent
 OUTPUTS_DIR = ROOT / "outputs"
+DOCS_DATA_DIR = ROOT / "docs" / "data"
+PARAMS = yaml.safe_load((ROOT / "config" / "parameters.yaml").read_text())
 
 
 def _get_output_path(suffix: str) -> Path:
@@ -147,3 +152,99 @@ def export_summary(df_final: pd.DataFrame, validation_issues: List[str]) -> Path
     log.info("Resumen ejecutivo exportado: %s", path)
     print("\n" + summary_text + "\n")
     return path
+
+
+def export_frontend_json(
+    df_final: pd.DataFrame,
+    df_clients_features: pd.DataFrame,
+) -> Path:
+    """Escribe docs/data/results.json para el dashboard GitHub Pages."""
+    run_date = str(date.today())
+    version = PARAMS["model"]["version"]
+    weights = PARAMS["weights"]
+
+    total = len(df_final)
+    dist = df_final["nivel_riesgo_final"].value_counts().to_dict()
+
+    segment_summary = []
+    for nivel in ["Bajo", "Medio", "Alto"]:
+        sub = df_final[df_final["nivel_riesgo_final"] == nivel]
+        count = len(sub)
+        segment_summary.append({
+            "nivel": nivel,
+            "total": count,
+            "pct": round(count / total, 4) if total > 0 else 0,
+            "score_avg": round(float(sub["score_final"].mean()), 4) if count > 0 else 0,
+        })
+
+    # Top 200 clientes por score desc (para la tabla del frontend)
+    top = df_final.sort_values("score_final", ascending=False).head(200)
+    top_clients = []
+    for _, r in top.iterrows():
+        top_clients.append({
+            "customer_id": str(r["customer_id"]),
+            "score_final": round(float(r["score_final"]), 4),
+            "score_cliente": round(float(r["score_cliente"]), 4),
+            "score_jurisdiccion": round(float(r["score_jurisdiccion"]), 4),
+            "score_producto": round(float(r["score_producto"]), 4),
+            "score_canal": round(float(r["score_canal"]), 4),
+            "nivel_riesgo_final": str(r["nivel_riesgo_final"]),
+            "nivel_riesgo_cliente": str(r.get("nivel_riesgo_cliente", "")),
+            "principales_drivers": str(r.get("principales_drivers", "")),
+            "country_code": str(r.get("country_code", df_clients_features.loc[
+                df_clients_features["customer_id"] == r["customer_id"], "country_code"
+            ].values[0] if "country_code" in df_clients_features.columns and
+                len(df_clients_features[df_clients_features["customer_id"] == r["customer_id"]]) > 0
+                else "")).upper() if "country_code" not in r.index else str(r.get("country_code", "")),
+        })
+
+    # Riesgo por país: agrupar si country_code está disponible
+    country_risk_summary = []
+    if "country_code" in df_clients_features.columns:
+        merged = df_final.merge(
+            df_clients_features[["customer_id", "country_code"]].drop_duplicates(),
+            on="customer_id", how="left",
+        )
+        by_country = (
+            merged.groupby("country_code")
+            .agg(total_clients=("customer_id", "count"), avg_score=("score_final", "mean"))
+            .reset_index()
+            .sort_values("avg_score", ascending=False)
+            .head(15)
+        )
+        country_risk_summary = [
+            {
+                "country_code": row["country_code"],
+                "country_name": row["country_code"],
+                "total_clients": int(row["total_clients"]),
+                "avg_score": round(float(row["avg_score"]), 4),
+            }
+            for _, row in by_country.iterrows()
+        ]
+
+    payload = {
+        "run_date": run_date,
+        "model_version": version,
+        "demo": False,
+        "summary": {
+            "total_clients": total,
+            "bajo":  int(dist.get("Bajo",  0)),
+            "medio": int(dist.get("Medio", 0)),
+            "alto":  int(dist.get("Alto",  0)),
+            "score_final_avg":        round(float(df_final["score_final"].mean()), 4),
+            "score_cliente_avg":      round(float(df_final["score_cliente"].mean()), 4),
+            "score_jurisdiccion_avg": round(float(df_final["score_jurisdiccion"].mean()), 4),
+            "score_producto_avg":     round(float(df_final["score_producto"].mean()), 4),
+            "score_canal_avg":        round(float(df_final["score_canal"].mean()), 4),
+            "weights": weights,
+        },
+        "segment_summary": segment_summary,
+        "top_clients": top_clients,
+        "country_risk_summary": country_risk_summary,
+    }
+
+    DOCS_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    out = DOCS_DATA_DIR / "results.json"
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    log.info("Frontend JSON actualizado: %s", out)
+    return out

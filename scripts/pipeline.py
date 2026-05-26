@@ -53,7 +53,7 @@ from score_products import assign_product_score_to_clients, build_products_df
 from score_channels import assign_channel_score_to_clients, build_channels_df
 from score_final import build_final_score
 from validate import validate_pipeline
-from export import export_excel, export_summary
+from export import export_excel, export_summary, export_frontend_json
 
 
 def run():
@@ -120,6 +120,7 @@ def run():
         df_channels_detail,
     )
     summary_path = export_summary(df_final, issues)
+    export_frontend_json(df_final, df_raw)
 
     elapsed = round(time.time() - t0, 1)
     log.info("=" * 60)

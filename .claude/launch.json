@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "riesgo-laft-mvp",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8090"],
+      "cwd": "/Users/benjamin.mackenna/Desktop/riesgo_laft_mvp/docs",
+      "port": 8090
+    }
+  ]
+}

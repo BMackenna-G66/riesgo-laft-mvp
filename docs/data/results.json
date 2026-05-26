@@ -1,0 +1,61 @@
+{
+  "run_date": "2026-05-26",
+  "model_version": "1.0.0",
+  "demo": true,
+  "summary": {
+    "total_clients": 1248,
+    "bajo": 612,
+    "medio": 487,
+    "alto": 149,
+    "score_final_avg": 0.3821,
+    "score_cliente_avg": 0.3412,
+    "score_jurisdiccion_avg": 0.4105,
+    "score_producto_avg": 0.5847,
+    "score_canal_avg": 0.4632,
+    "weights": {
+      "clientes": 0.40,
+      "jurisdicciones": 0.30,
+      "productos": 0.15,
+      "canales": 0.15
+    }
+  },
+  "segment_summary": [
+    { "nivel": "Bajo",  "total": 612, "pct": 0.490, "score_avg": 0.1923 },
+    { "nivel": "Medio", "total": 487, "pct": 0.390, "score_avg": 0.4817 },
+    { "nivel": "Alto",  "total": 149, "pct": 0.119, "score_avg": 0.7841 }
+  ],
+  "top_clients": [
+    { "customer_id": "C-00841", "score_final": 0.9312, "score_cliente": 0.9540, "score_jurisdiccion": 0.8900, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "VE" },
+    { "customer_id": "C-00223", "score_final": 0.8974, "score_cliente": 0.9210, "score_jurisdiccion": 0.8500, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "IR" },
+    { "customer_id": "C-01103", "score_final": 0.8721, "score_cliente": 0.8940, "score_jurisdiccion": 0.8200, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "NG" },
+    { "customer_id": "C-00512", "score_final": 0.8563, "score_cliente": 0.8810, "score_jurisdiccion": 0.7900, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "KP" },
+    { "customer_id": "C-00789", "score_final": 0.8412, "score_cliente": 0.8720, "score_jurisdiccion": 0.7700, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "SD" },
+    { "customer_id": "C-00334", "score_final": 0.8201, "score_cliente": 0.8580, "score_jurisdiccion": 0.7400, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "SY" },
+    { "customer_id": "C-00671", "score_final": 0.8033, "score_cliente": 0.8390, "score_jurisdiccion": 0.7200, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "MM" },
+    { "customer_id": "C-00945", "score_final": 0.7912, "score_cliente": 0.8150, "score_jurisdiccion": 0.7100, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "BY" },
+    { "customer_id": "C-00128", "score_final": 0.7841, "score_cliente": 0.8010, "score_jurisdiccion": 0.6900, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "VE" },
+    { "customer_id": "C-00456", "score_final": 0.7720, "score_cliente": 0.7940, "score_jurisdiccion": 0.6800, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "HT" },
+    { "customer_id": "C-01234", "score_final": 0.7601, "score_cliente": 0.7820, "score_jurisdiccion": 0.6600, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "IQ" },
+    { "customer_id": "C-00382", "score_final": 0.7498, "score_cliente": 0.7700, "score_jurisdiccion": 0.6500, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "LB" },
+    { "customer_id": "C-00819", "score_final": 0.7312, "score_cliente": 0.7530, "score_jurisdiccion": 0.6300, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, producto",    "country_code": "CO" },
+    { "customer_id": "C-00561", "score_final": 0.7201, "score_cliente": 0.7410, "score_jurisdiccion": 0.6100, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, producto",    "country_code": "MX" },
+    { "customer_id": "C-00093", "score_final": 0.7102, "score_cliente": 0.7300, "score_jurisdiccion": 0.6000, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, jurisdiccion", "country_code": "TR" },
+    { "customer_id": "C-00714", "score_final": 0.6991, "score_cliente": 0.7200, "score_jurisdiccion": 0.5900, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Alto",  "principales_drivers": "cliente, producto",    "country_code": "AR" },
+    { "customer_id": "C-00247", "score_final": 0.6843, "score_cliente": 0.7010, "score_jurisdiccion": 0.5700, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Medio", "principales_drivers": "cliente, jurisdiccion", "country_code": "BO" },
+    { "customer_id": "C-00930", "score_final": 0.6712, "score_cliente": 0.6890, "score_jurisdiccion": 0.5500, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Medio", "principales_drivers": "cliente, producto",    "country_code": "PE" },
+    { "customer_id": "C-00175", "score_final": 0.6601, "score_cliente": 0.6780, "score_jurisdiccion": 0.5400, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Medio", "principales_drivers": "cliente, jurisdiccion", "country_code": "EC" },
+    { "customer_id": "C-00648", "score_final": 0.6498, "score_cliente": 0.6630, "score_jurisdiccion": 0.5200, "score_producto": 0.5847, "score_canal": 0.4632, "nivel_riesgo_final": "Medio", "principales_drivers": "cliente, producto",    "country_code": "CO" }
+  ],
+  "country_risk_summary": [
+    { "country_code": "VE", "country_name": "Venezuela",   "total_clients": 48,  "avg_score": 0.812 },
+    { "country_code": "IR", "country_name": "Irán",        "total_clients": 12,  "avg_score": 0.784 },
+    { "country_code": "KP", "country_name": "Corea del Norte", "total_clients": 3, "avg_score": 0.891 },
+    { "country_code": "SD", "country_name": "Sudán",       "total_clients": 7,   "avg_score": 0.769 },
+    { "country_code": "SY", "country_name": "Siria",       "total_clients": 5,   "avg_score": 0.751 },
+    { "country_code": "HT", "country_name": "Haití",       "total_clients": 22,  "avg_score": 0.702 },
+    { "country_code": "NG", "country_name": "Nigeria",     "total_clients": 31,  "avg_score": 0.695 },
+    { "country_code": "CO", "country_name": "Colombia",    "total_clients": 187, "avg_score": 0.512 },
+    { "country_code": "MX", "country_name": "México",      "total_clients": 203, "avg_score": 0.498 },
+    { "country_code": "PE", "country_name": "Perú",        "total_clients": 156, "avg_score": 0.442 }
+  ]
+}

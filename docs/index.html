@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Segmentación LA/FT/FPADM — Compliance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+<aside id="sidebar">
+  <div class="brand">
+    <div class="brand-icon">RS</div>
+    <span>Riesgo LA/FT</span>
+  </div>
+  <nav>
+    <a href="#dashboard" class="nav-link active" data-page="dashboard">
+      <div class="nav-dot">D</div> Dashboard
+    </a>
+    <a href="#clients" class="nav-link" data-page="clients">
+      <div class="nav-dot">C</div> Clientes
+    </a>
+    <a href="#export" class="nav-link" data-page="export">
+      <div class="nav-dot">E</div> Exportar
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    Global66 SPA<br/>
+    Compliance · Segmentación LA/FT/FPADM
+  </div>
+</aside>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<div id="main">
+  <header id="topbar">
+    <h1 id="page-title">Dashboard</h1>
+    <div class="topbar-actions">
+      <span id="last-updated" style="font-size:.75rem;color:#5a6880;"></span>
+      <button class="btn btn-secondary btn-sm" onclick="App.reload()">Actualizar datos</button>
+    </div>
+  </header>
+
+  <main id="content">
+    <div class="loader" id="global-loader"><div class="spinner"></div></div>
+
+    <!-- DASHBOARD ─────────────────────────────────────────────────────── -->
+    <div id="page-dashboard" class="page" style="display:none;">
+      <div class="page-header">
+        <h1>Dashboard Ejecutivo — Segmentación de Riesgo LA/FT/FPADM</h1>
+      </div>
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>Distribución de Riesgo</h3>
+          <div style="height:220px;position:relative;">
+            <canvas id="chart-dist"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>Score Promedio por Factor</h3>
+          <div style="height:220px;position:relative;">
+            <canvas id="chart-factors"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Top Países — Score de Riesgo Promedio</h3>
+        <div style="height:260px;position:relative;">
+          <canvas id="chart-countries"></canvas>
+        </div>
+      </div>
+
+      <div class="detail-card" style="margin-top:18px;">
+        <h3>Metodología</h3>
+        <p style="font-size:.82rem;line-height:1.8;color:var(--text);">
+          El score final se calcula como una suma ponderada de 4 factores:
+          <strong>Clientes (40%)</strong> — segmentación estadística KMeans k=3 sobre métricas transaccionales de 180 días.
+          <strong>Jurisdicciones (30%)</strong> — riesgo país por tabla GAFI/FATF + dispersión geográfica.
+          <strong>Productos (15%)</strong> y <strong>Canales (15%)</strong> — scoring ponderado por juicio experto (parametrizable en YAML).
+          Clasificación: Bajo ≤ 0.33 · Medio ≤ 0.66 · Alto ≤ 1.00.
+        </p>
+      </div>
+    </div>
+
+    <!-- CLIENTES ──────────────────────────────────────────────────────── -->
+    <div id="page-clients" class="page" style="display:none;">
+      <div class="page-header">
+        <h1>Clientes — Score Final</h1>
+        <span id="clients-count" style="font-size:.82rem;color:#5a6880;"></span>
+      </div>
+      <div class="table-card">
+        <div class="table-toolbar">
+          <input type="text" id="filter-search-c" placeholder="Buscar por ID o país…" oninput="Clients.render()" />
+          <select id="filter-nivel" onchange="Clients.render()">
+            <option value="">Todos los niveles</option>
+            <option value="Alto">Alto</option>
+            <option value="Medio">Medio</option>
+            <option value="Bajo">Bajo</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Customer ID</th>
+                <th>País</th>
+                <th>Score Final</th>
+                <th>Nivel Riesgo</th>
+                <th>Score Cliente</th>
+                <th>Score Jurisdic.</th>
+                <th>Score Producto</th>
+                <th>Drivers</th>
+              </tr>
+            </thead>
+            <tbody id="clients-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPORTAR ───────────────────────────────────────────────────────── -->
+    <div id="page-export" class="page" style="display:none;">
+      <div class="page-header"><h1>Exportar Resultados</h1></div>
+      <div class="detail-card" style="max-width:520px;">
+        <h3 style="margin-bottom:14px;">Reporte de Segmentación LA/FT/FPADM</h3>
+        <p style="margin-bottom:18px;font-size:.84rem;color:#5a6880;">
+          Descarga el archivo Excel con los resultados del último ciclo de segmentación.
+          Incluye score final, resumen por segmento y riesgo por país.
+        </p>
+        <div id="export-preview" style="margin:14px 0;font-size:.84rem;color:#5a6880;padding:10px;background:var(--surface-alt);border-radius:5px;"></div>
+        <button class="btn btn-primary" onclick="Export.downloadExcel()">Descargar Excel</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/clients.js"></script>
+<script src="js/export.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
