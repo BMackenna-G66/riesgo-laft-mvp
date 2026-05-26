@@ -1,0 +1,16 @@
+.env
+*.db
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+logs/*.log
+outputs/*.xlsx
+outputs/*.csv
+outputs/*.txt
+*.egg-info/
+dist/
+build/
+models/*.pkl
+models/*.joblib
