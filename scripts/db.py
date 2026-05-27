@@ -67,6 +67,12 @@ def query_to_df(sql: str, conn=None) -> pd.DataFrame:
 
     client = _client()
 
+    # Límite de filas configurable (solo para dev/testing; 0 = sin límite)
+    max_rows = int(os.getenv("REDSHIFT_MAX_ROWS", 0))
+    if max_rows and "LIMIT" not in sql.upper().split("--")[0][-200:]:
+        sql = sql.rstrip().rstrip(";") + f"\nLIMIT {max_rows}"
+        log.info("REDSHIFT_MAX_ROWS=%d aplicado a la query", max_rows)
+
     log.info("Enviando query via Data API [%s/%s] …", cluster, database)
 
     # Enviar statement
@@ -100,22 +106,45 @@ def query_to_df(sql: str, conn=None) -> pd.DataFrame:
         log.info("Query OK — sin filas (DML/DDL)")
         return pd.DataFrame()
 
-    # Recuperar resultados (paginado)
-    rows_all = []
-    col_meta = None
-    kwargs   = {"Id": stmt_id}
+    # Recuperar resultados (paginado con reintentos para errores de red)
+    total_rows = desc.get("ResultRows", 0)
+    log.info("Descargando %s filas…", f"{total_rows:,}" if total_rows else "?")
+
+    rows_all  = []
+    col_meta  = None
+    kwargs    = {"Id": stmt_id}
+    page_num  = 0
+    MAX_RETRY = 5     # reintentos por error de red
 
     while True:
-        page = client.get_statement_result(**kwargs)
+        # Llamada con reintentos exponenciales
+        for attempt in range(MAX_RETRY):
+            try:
+                page = client.get_statement_result(**kwargs)
+                break
+            except Exception as net_err:
+                if attempt == MAX_RETRY - 1:
+                    raise
+                wait = 2 ** attempt
+                log.warning("Error de red en página %d (intento %d/%d): %s — reintentando en %ds",
+                            page_num, attempt + 1, MAX_RETRY, net_err, wait)
+                time.sleep(wait)
+                client = _client()   # nuevo cliente boto3
+
         if col_meta is None:
             col_meta = page["ColumnMetadata"]
+
         for row in page.get("Records", []):
             parsed = []
             for cell in row:
-                # Cada celda es un dict con UNA clave: longValue, stringValue, etc.
                 val = next(iter(cell.values()))
                 parsed.append(None if "isNull" in cell and cell.get("isNull") else val)
             rows_all.append(parsed)
+
+        page_num += 1
+        if page_num % 200 == 0:
+            log.info("  … %d filas descargadas", len(rows_all))
+
         next_token = page.get("NextToken")
         if not next_token:
             break
