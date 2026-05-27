@@ -39,19 +39,18 @@ clustering:
   # 2 = mayor score_composite → Alto
 
 # Features numéricas usadas en KMeans (deben existir en el DataFrame de features)
-# Basadas en compliance.bbdd_clientes + compliance.bbdd_delitos
+# Basadas en db_prod: treasury.cash_call + transaction.transaction
 feature_columns:
-  - delitos_count_norm
-  - high_crimes_norm
-  - medium_crimes_norm
-  - crime_type_diversity_norm
-  - active_crimes_norm
-  - total_delitos_norm
-  - con_info
-  - is_blocked
-  - under_review
-  - has_warning
-  - has_alerts
+  - trx_180d_norm
+  - volume_usd_180d_norm
+  - avg_ticket_usd_180d_norm
+  - max_ticket_usd_180d_norm
+  - rejection_rate_180d_norm
+  - unique_external_funders_180d_norm
+  - unique_beneficiaries_180d_norm
+  - unique_destiny_countries_180d_norm
+  - unique_currencies_180d_norm
+  - unique_payment_methods_180d_norm
 
 # Tratamiento de outliers (IQR)
 outliers:

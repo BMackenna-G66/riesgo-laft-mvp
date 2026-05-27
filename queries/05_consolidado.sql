@@ -1,96 +1,87 @@
 -- Query 5: Consolidada principal — alimenta directamente el pipeline MVP
--- Fuente: compliance.bbdd_clientes + compliance.bbdd_delitos + compliance.alerts
+-- Fuente: db_prod.customer.customer_v2 + db_prod.treasury.cash_call + db_prod.transaction.transaction
 -- Uso: staging principal → features → modelo
+-- Nota: solo incluye clientes con actividad en los últimos 180 días (INNER JOIN cash_metrics)
 
-WITH clientes_raw AS (
+WITH clientes AS (
+    SELECT
+        cv2.customer_id,
+        cv2.email,
+        cv2.country_code,
+        cv2.created_date                             AS customer_created_at,
+        UPPER(TRIM(COALESCE(cv2.risk_level, 'BAJO'))) AS compliance_status,
+        cv2.is_company
+    FROM "db_prod"."customer"."customer_v2" cv2
+),
+
+cash_metrics AS (
     SELECT
         customer_id,
-        CAST(rut AS VARCHAR) AS rut,
-        compliance_status,
-        UPPER(TRIM(risk_level))  AS risk_level_raw,
-        COALESCE(total_delitos, 0) AS total_delitos,
-        CASE WHEN UPPER(TRIM(con_info)) = 'SI' THEN 1 ELSE 0 END AS con_info,
-        grupo,
-        -- Desduplicar por customer_id: conservar el registro con mayor riesgo
-        ROW_NUMBER() OVER (
-            PARTITION BY customer_id
-            ORDER BY
-                CASE UPPER(TRIM(risk_level))
-                    WHEN 'ALTO' THEN 1
-                    WHEN 'MEDIO' THEN 2
-                    WHEN 'BAJO'  THEN 3
-                    ELSE 4
-                END ASC,
-                loaded_at DESC
-        ) AS rn
-    FROM compliance.bbdd_clientes
-    WHERE customer_id IS NOT NULL
+        COUNT(*)                                                             AS trx_180d,
+        SUM(destiny_amount_usd)                                              AS volume_usd_180d,
+        AVG(destiny_amount_usd)                                              AS avg_ticket_usd_180d,
+        MAX(destiny_amount_usd)                                              AS max_ticket_usd_180d,
+        COUNT(CASE WHEN status = 'paid'     THEN 1 END)                      AS paid_180d,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END)                      AS rejected_180d,
+        CASE
+            WHEN COUNT(*) = 0 THEN 0
+            ELSE COUNT(CASE WHEN status = 'rejected' THEN 1 END)::DECIMAL / COUNT(*)
+        END                                                                   AS rejection_rate_180d,
+        COUNT(DISTINCT persona_dni)                                          AS unique_external_funders_180d,
+        COUNT(DISTINCT currency_code)                                        AS unique_currencies_180d,
+        COUNT(DISTINCT payment_method)                                       AS unique_payment_methods_180d,
+        MIN(creation_date)                                                    AS first_operation_date,
+        MAX(creation_date)                                                    AS last_operation_date
+    FROM "db_prod"."treasury"."cash_call"
+    WHERE creation_date >= DATEADD(day, -180, CURRENT_DATE)
+    GROUP BY customer_id
 ),
 
-clientes AS (
-    SELECT customer_id, rut, compliance_status, risk_level_raw,
-           total_delitos, con_info, grupo
-    FROM clientes_raw
-    WHERE rn = 1
-),
-
-delitos_agg AS (
+tx_metrics AS (
     SELECT
         customer_id,
-        COUNT(*)                                                         AS delitos_count,
-        COUNT(CASE WHEN LOWER(riesgo) = 'high'   THEN 1 END)            AS high_crimes,
-        COUNT(CASE WHEN LOWER(riesgo) = 'medium' THEN 1 END)            AS medium_crimes,
-        COUNT(CASE WHEN LOWER(riesgo) = 'low'    THEN 1 END)            AS low_crimes,
-        COUNT(DISTINCT crimen)                                           AS crime_type_diversity,
-        COUNT(CASE WHEN LOWER(estado) NOT LIKE '%concluida%' THEN 1 END) AS active_crimes,
-        MIN(fecha)                                                       AS first_crime_date,
-        MAX(fecha)                                                       AS last_crime_date
-    FROM compliance.bbdd_delitos
-    WHERE customer_id IS NOT NULL
-    GROUP BY 1
-),
-
-alerts_agg AS (
-    SELECT
-        CAST(entity_value AS INTEGER) AS customer_id,
-        COUNT(*)                      AS alert_count,
-        1                             AS has_alerts
-    FROM compliance.alerts
-    WHERE entity_field = 'customer_id'
-      AND status       = 'active'
-    GROUP BY 1
+        COUNT(DISTINCT beneficiary_id)    AS unique_beneficiaries_180d,
+        COUNT(DISTINCT destiny_country)   AS unique_destiny_countries_180d,
+        COUNT(DISTINCT origin_country)    AS unique_origin_countries_180d
+    FROM "db_prod"."transaction"."transaction"
+    WHERE start_date >= DATEADD(day, -180, CURRENT_DATE)
+    GROUP BY customer_id
 )
 
 SELECT
     c.customer_id,
-    c.rut,
+    c.email,
+    c.country_code,
+    c.customer_created_at,
     c.compliance_status,
-    c.risk_level_raw,
-    c.total_delitos,
-    c.con_info,
-    c.grupo,
+    c.is_company,
 
-    -- Delitos agregados
-    COALESCE(d.delitos_count,        0) AS delitos_count,
-    COALESCE(d.high_crimes,          0) AS high_crimes,
-    COALESCE(d.medium_crimes,        0) AS medium_crimes,
-    COALESCE(d.low_crimes,           0) AS low_crimes,
-    COALESCE(d.crime_type_diversity, 0) AS crime_type_diversity,
-    COALESCE(d.active_crimes,        0) AS active_crimes,
-    d.first_crime_date,
-    d.last_crime_date,
+    -- Métricas transaccionales 180d
+    cm.trx_180d,
+    COALESCE(cm.volume_usd_180d,              0) AS volume_usd_180d,
+    COALESCE(cm.avg_ticket_usd_180d,          0) AS avg_ticket_usd_180d,
+    COALESCE(cm.max_ticket_usd_180d,          0) AS max_ticket_usd_180d,
+    cm.paid_180d,
+    cm.rejected_180d,
+    COALESCE(cm.rejection_rate_180d,          0) AS rejection_rate_180d,
+    COALESCE(cm.unique_external_funders_180d, 0) AS unique_external_funders_180d,
+    COALESCE(cm.unique_currencies_180d,       0) AS unique_currencies_180d,
+    COALESCE(cm.unique_payment_methods_180d,  0) AS unique_payment_methods_180d,
 
-    -- Alertas
-    COALESCE(a.alert_count, 0) AS alert_count,
-    COALESCE(a.has_alerts,  0) AS has_alerts,
+    -- Métricas de transacciones destino/beneficiario
+    COALESCE(tm.unique_beneficiaries_180d,     0) AS unique_beneficiaries_180d,
+    COALESCE(tm.unique_destiny_countries_180d, 0) AS unique_destiny_countries_180d,
+    COALESCE(tm.unique_origin_countries_180d,  0) AS unique_origin_countries_180d,
 
-    -- Flags de compliance derivados
-    CASE WHEN c.compliance_status IN ('BLOCKED','FULLY_BLOCKED') THEN 1 ELSE 0 END AS is_blocked,
-    CASE WHEN c.compliance_status LIKE 'UNDER_COMPLIANCE_REVIEW%'  THEN 1 ELSE 0 END AS under_review,
-    CASE WHEN c.compliance_status = 'WARNING'                       THEN 1 ELSE 0 END AS has_warning,
-
-    CURRENT_TIMESTAMP AS extracted_at
+    cm.first_operation_date,
+    cm.last_operation_date
 
 FROM clientes c
-LEFT JOIN delitos_agg d USING (customer_id)
-LEFT JOIN alerts_agg  a USING (customer_id)
+-- Solo clientes activos en 180 días (descarta inactivos sin riesgo transaccional)
+INNER JOIN cash_metrics cm
+    ON CAST(c.customer_id AS VARCHAR) = CAST(cm.customer_id AS VARCHAR)
+LEFT JOIN tx_metrics tm
+    ON CAST(c.customer_id AS VARCHAR) = CAST(tm.customer_id AS VARCHAR)
+
+-- Descomentar para pruebas con dataset reducido:
+-- ORDER BY cm.volume_usd_180d DESC LIMIT 50000

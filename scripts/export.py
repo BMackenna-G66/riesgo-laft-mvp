@@ -177,23 +177,16 @@ def export_frontend_json(
             "score_avg": round(float(sub["score_final"].mean()), 4) if count > 0 else 0,
         })
 
-    # Merge con features para tener grupo disponible en top_clients
-    if "grupo" in df_clients_features.columns:
-        extra_cols = ["customer_id", "grupo"]
-        if "compliance_status" in df_clients_features.columns:
-            extra_cols.append("compliance_status")
-        df_merged = df_final.merge(
-            df_clients_features[extra_cols].drop_duplicates("customer_id"),
-            on="customer_id", how="left",
-        )
-    else:
-        df_merged = df_final.copy()
-        df_merged["grupo"] = None
-
     # Top 200 clientes por score desc (para la tabla del frontend)
-    top = df_merged.sort_values("score_final", ascending=False).head(200)
+    top = df_final.sort_values("score_final", ascending=False).head(200)
     top_clients = []
     for _, r in top.iterrows():
+        # Buscar country_code desde df_clients_features si no está en df_final
+        country = str(r.get("country_code", ""))
+        if not country and "country_code" in df_clients_features.columns:
+            mask = df_clients_features["customer_id"] == r["customer_id"]
+            rows = df_clients_features.loc[mask, "country_code"]
+            country = str(rows.values[0]) if len(rows) > 0 else ""
         top_clients.append({
             "customer_id": str(r["customer_id"]),
             "score_final": round(float(r["score_final"]), 4),
@@ -204,27 +197,31 @@ def export_frontend_json(
             "nivel_riesgo_final": str(r["nivel_riesgo_final"]),
             "nivel_riesgo_cliente": str(r.get("nivel_riesgo_cliente", "")),
             "principales_drivers": str(r.get("principales_drivers", "")),
-            "country_code": f"G{int(r['grupo'])}" if r.get("grupo") is not None and str(r.get("grupo")) != "nan" else "—",
+            "country_code": country.upper() if country else "—",
         })
 
-    # Riesgo por grupo jurisdiccional
+    # Riesgo por país de origen
     country_risk_summary = []
-    if "grupo" in df_merged.columns:
-        by_grupo = (
-            df_merged.groupby("grupo")
+    if "country_code" in df_clients_features.columns:
+        merged = df_final.merge(
+            df_clients_features[["customer_id", "country_code"]].drop_duplicates("customer_id"),
+            on="customer_id", how="left",
+        )
+        by_country = (
+            merged.groupby("country_code")
             .agg(total_clients=("customer_id", "count"), avg_score=("score_final", "mean"))
             .reset_index()
             .sort_values("avg_score", ascending=False)
+            .head(15)
         )
-        grupo_names = {1: "Grupo 1 (Bajo)", 2: "Grupo 2", 3: "Grupo 3 (Medio)", 4: "Grupo 4", 5: "Grupo 5 (Alto)"}
         country_risk_summary = [
             {
-                "country_code": f"G{int(row['grupo'])}",
-                "country_name": grupo_names.get(int(row["grupo"]), f"Grupo {int(row['grupo'])}"),
+                "country_code": str(row["country_code"]),
+                "country_name": str(row["country_code"]),
                 "total_clients": int(row["total_clients"]),
                 "avg_score": round(float(row["avg_score"]), 4),
             }
-            for _, row in by_grupo.iterrows()
+            for _, row in by_country.iterrows()
         ]
 
     payload = {

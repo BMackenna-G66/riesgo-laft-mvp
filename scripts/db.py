@@ -146,27 +146,13 @@ def load_sql(filename: str) -> str:
 
 def _apply_db_prefix(sql: str) -> str:
     """
-    Sustituye "db_prod". en las queries según REDSHIFT_DB_PREFIX del .env.
-
-    Dos modos:
-    - REDSHIFT_DB_PREFIX=db_prod  → sin cambios (queries originales de producción)
-    - REDSHIFT_DB_PREFIX=dev       → elimina el prefijo de base de datos,
-      convirtiendo "db_prod"."schema"."table" → "schema"."table"
-      (Redshift no admite referencias cross-database en el mismo clúster vía Data API
-      cuando la DB de conexión ya ES "dev")
-
-    Para cualquier otro valor se hace una sustitución directa del nombre.
+    Sustituye "db_prod" en las queries por el valor de REDSHIFT_DB_PREFIX del .env.
+    Permite usar las mismas queries en producción (db_prod) y en otros entornos
+    sin modificar los archivos SQL.
+    Con REDSHIFT_DB_PREFIX=db_prod no hay ninguna sustitución (comportamiento default).
     """
     db_prefix = os.getenv("REDSHIFT_DB_PREFIX", "db_prod")
-    if db_prefix == "db_prod":
-        return sql  # sin cambios en producción
-
-    if db_prefix == "dev":
-        # En el clúster de compliance la DB "dev" ya es la activa;
-        # quitamos el prefijo para que las queries usen schema.table directamente.
-        sql = sql.replace('"db_prod".', "")
-        log.debug("DB prefix eliminado (modo dev): \"db_prod\". → ''")
-    else:
+    if db_prefix != "db_prod":
         sql = sql.replace('"db_prod"', f'"{db_prefix}"')
         log.debug("DB prefix sustituido: db_prod → %s", db_prefix)
     return sql
