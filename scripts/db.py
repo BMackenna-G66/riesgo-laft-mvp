@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 """
-Conexión a Redshift con autenticación IAM.
+Conexión a Redshift via Redshift Data API (HTTPS).
 
-Cluster:  compliance-redshift-cluster.cszw4nrem7jk.us-east-1.redshift.amazonaws.com
+Usa la Redshift Data API en lugar de TCP directo al puerto 5439, por lo que
+no depende de reglas de Security Group en la VPC.
+
+Cluster:  compliance-redshift-cluster
 Region:   us-east-1
 Auth:     AWS IAM (sin contraseñas estáticas en código)
 
 Credenciales requeridas en .env:
-    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
     REDSHIFT_CLUSTER_ID, REDSHIFT_DATABASE, REDSHIFT_DB_USER
-    REDSHIFT_HOST, REDSHIFT_PORT, AWS_REGION
 """
 
 import logging
 import os
+import time
 from pathlib import Path
 
+import boto3
 import pandas as pd
-import redshift_connector
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -25,24 +28,17 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 log = logging.getLogger("db")
 
 # ── Constantes del cluster (públicas, no secretos) ────────────────────────
-CLUSTER_ENDPOINT = "compliance-redshift-cluster.cszw4nrem7jk.us-east-1.redshift.amazonaws.com"
-CLUSTER_ID       = "compliance-redshift-cluster"
-CLUSTER_REGION   = "us-east-1"
-CLUSTER_PORT     = 5439
+CLUSTER_ID     = "compliance-redshift-cluster"
+CLUSTER_REGION = "us-east-1"
+
+# Tiempo máximo de espera por query (segundos)
+QUERY_TIMEOUT  = 300
+POLL_INTERVAL  = 2   # segundos entre polls
 
 
-def get_connection() -> redshift_connector.Connection:
-    """
-    Abre conexión a Redshift usando autenticación IAM.
-    Las credenciales AWS se leen desde variables de entorno (nunca hardcodeadas).
-    """
-    host     = os.getenv("REDSHIFT_HOST",       CLUSTER_ENDPOINT)
-    port     = int(os.getenv("REDSHIFT_PORT",   CLUSTER_PORT))
-    database = os.environ["REDSHIFT_DATABASE"]
-    region   = os.getenv("AWS_REGION",          CLUSTER_REGION)
-    cluster  = os.getenv("REDSHIFT_CLUSTER_ID", CLUSTER_ID)
-    db_user  = os.environ["REDSHIFT_DB_USER"]
-
+def _client():
+    """Crea cliente boto3 para Redshift Data API."""
+    region     = os.getenv("AWS_REGION", CLUSTER_REGION)
     access_key = os.environ.get("AWS_ACCESS_KEY_ID")
     secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
 
@@ -51,42 +47,94 @@ def get_connection() -> redshift_connector.Connection:
             "Faltan AWS_ACCESS_KEY_ID o AWS_SECRET_ACCESS_KEY en el archivo .env"
         )
 
-    log.info("Conectando a Redshift [%s/%s] con IAM user=%s …", host, database, db_user)
-
-    conn = redshift_connector.connect(
-        host=host,
-        port=port,
-        database=database,
-        db_user=db_user,
-        cluster_identifier=cluster,
-        region=region,
-        access_key_id=access_key,
-        secret_access_key=secret_key,
-        iam=True,
-        timeout=60,
-        tcp_keepalive=True,
+    return boto3.client(
+        "redshift-data",
+        region_name=region,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
     )
-    conn.autocommit = True
-    log.info("Conexión establecida.")
-    return conn
 
 
 def query_to_df(sql: str, conn=None) -> pd.DataFrame:
-    """Ejecuta SQL y retorna DataFrame. Abre y cierra conexión si no se pasa una."""
-    close_after = conn is None
-    if close_after:
-        conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(sql)
-        cols = [d[0] for d in cursor.description]
-        rows = cursor.fetchall()
-        df = pd.DataFrame(rows, columns=cols)
-        log.info("Query OK — %d filas retornadas", len(df))
-        return df
-    finally:
-        if close_after:
-            conn.close()
+    """
+    Ejecuta SQL via Redshift Data API y retorna DataFrame.
+    El parámetro `conn` se acepta por compatibilidad pero se ignora
+    (la Data API no usa conexiones persistentes).
+    """
+    database = os.environ["REDSHIFT_DATABASE"]
+    cluster  = os.getenv("REDSHIFT_CLUSTER_ID", CLUSTER_ID)
+    db_user  = os.environ["REDSHIFT_DB_USER"]
+
+    client = _client()
+
+    log.info("Enviando query via Data API [%s/%s] …", cluster, database)
+
+    # Enviar statement
+    resp = client.execute_statement(
+        ClusterIdentifier=cluster,
+        Database=database,
+        DbUser=db_user,
+        Sql=sql,
+    )
+    stmt_id = resp["Id"]
+    log.debug("Statement ID: %s", stmt_id)
+
+    # Polling hasta que termine
+    deadline = time.time() + QUERY_TIMEOUT
+    while time.time() < deadline:
+        desc = client.describe_statement(Id=stmt_id)
+        status = desc["Status"]
+        if status == "FINISHED":
+            break
+        if status in ("FAILED", "ABORTED"):
+            err = desc.get("Error", "sin detalle")
+            raise RuntimeError(f"Query fallida [{status}]: {err}\nSQL: {sql[:300]}")
+        time.sleep(POLL_INTERVAL)
+    else:
+        raise TimeoutError(
+            f"Query superó {QUERY_TIMEOUT}s sin respuesta. Statement ID: {stmt_id}"
+        )
+
+    # Sin resultados (DDL, INSERT, etc.)
+    if not desc.get("HasResultSet"):
+        log.info("Query OK — sin filas (DML/DDL)")
+        return pd.DataFrame()
+
+    # Recuperar resultados (paginado)
+    rows_all = []
+    col_meta = None
+    kwargs   = {"Id": stmt_id}
+
+    while True:
+        page = client.get_statement_result(**kwargs)
+        if col_meta is None:
+            col_meta = page["ColumnMetadata"]
+        for row in page.get("Records", []):
+            parsed = []
+            for cell in row:
+                # Cada celda es un dict con UNA clave: longValue, stringValue, etc.
+                val = next(iter(cell.values()))
+                parsed.append(None if "isNull" in cell and cell.get("isNull") else val)
+            rows_all.append(parsed)
+        next_token = page.get("NextToken")
+        if not next_token:
+            break
+        kwargs["NextToken"] = next_token
+
+    cols = [c["name"] for c in col_meta] if col_meta else []
+    df   = pd.DataFrame(rows_all, columns=cols)
+
+    # Convertir tipos numéricos (la Data API devuelve todo como string en algunas versiones)
+    for meta in (col_meta or []):
+        col  = meta["name"]
+        kind = meta.get("typeName", "")
+        if col not in df.columns:
+            continue
+        if kind in ("int4", "int8", "int2", "float4", "float8", "numeric"):
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    log.info("Query OK — %d filas, %d columnas", len(df), len(df.columns))
+    return df
 
 
 def load_sql(filename: str) -> str:
@@ -98,12 +146,40 @@ def load_sql(filename: str) -> str:
 
 def _apply_db_prefix(sql: str) -> str:
     """
-    Sustituye "db_prod" en las queries por el valor de REDSHIFT_DB_PREFIX del .env.
-    Permite usar las mismas queries en producción (db_prod) y en el cluster
-    de compliance (dev) sin modificar los archivos SQL.
+    Sustituye "db_prod". en las queries según REDSHIFT_DB_PREFIX del .env.
+
+    Dos modos:
+    - REDSHIFT_DB_PREFIX=db_prod  → sin cambios (queries originales de producción)
+    - REDSHIFT_DB_PREFIX=dev       → elimina el prefijo de base de datos,
+      convirtiendo "db_prod"."schema"."table" → "schema"."table"
+      (Redshift no admite referencias cross-database en el mismo clúster vía Data API
+      cuando la DB de conexión ya ES "dev")
+
+    Para cualquier otro valor se hace una sustitución directa del nombre.
     """
     db_prefix = os.getenv("REDSHIFT_DB_PREFIX", "db_prod")
-    if db_prefix != "db_prod":
+    if db_prefix == "db_prod":
+        return sql  # sin cambios en producción
+
+    if db_prefix == "dev":
+        # En el clúster de compliance la DB "dev" ya es la activa;
+        # quitamos el prefijo para que las queries usen schema.table directamente.
+        sql = sql.replace('"db_prod".', "")
+        log.debug("DB prefix eliminado (modo dev): \"db_prod\". → ''")
+    else:
         sql = sql.replace('"db_prod"', f'"{db_prefix}"')
         log.debug("DB prefix sustituido: db_prod → %s", db_prefix)
     return sql
+
+
+# ── Compatibilidad retroactiva ─────────────────────────────────────────────
+def get_connection():
+    """
+    DEPRECATED. Mantenido por compatibilidad.
+    La Data API no usa conexiones persistentes; retorna None.
+    """
+    log.warning(
+        "get_connection() está obsoleto con la Data API. "
+        "Usa query_to_df(sql) directamente."
+    )
+    return None
