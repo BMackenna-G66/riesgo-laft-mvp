@@ -1,0 +1,44 @@
+name: ⏸️ Pausar Cluster Redshift
+
+on:
+  workflow_dispatch:
+    inputs:
+      motivo:
+        description: "Motivo de la pausa (opcional)"
+        required: false
+        default: "Fin de uso — ahorro de costos"
+
+  # Pausa automática cada día a las 22:00 UTC (19:00 hora Chile)
+  schedule:
+    - cron: '0 22 * * *'
+
+jobs:
+  pause:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - run: pip install boto3 python-dotenv
+
+      - name: Pausar cluster
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION:            us-east-1
+          REDSHIFT_CLUSTER_ID:   compliance-redshift-cluster
+        run: python scripts/cluster_control.py pause
+
+      - name: Commit cluster_status.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data/cluster_status.json
+          git diff --staged --quiet || git commit -m "data: cluster pausado [skip ci]"
+          git push
