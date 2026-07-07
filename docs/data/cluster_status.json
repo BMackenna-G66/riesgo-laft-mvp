@@ -1,11 +1,11 @@
 {
   "cluster_id": "compliance-redshift-cluster",
-  "status_raw": "paused",
-  "status_label": "Pausado",
+  "status_raw": "pausing",
+  "status_label": "Pausando",
   "node_type": "ra3.large",
   "number_of_nodes": 1,
   "endpoint": "compliance-redshift-cluster.cszw4nrem7jk.us-east-1.redshift.amazonaws.com",
   "database_name": "dev",
   "availability_zone": "us-east-1a",
-  "checked_at": "2026-07-06T22:58:14Z"
+  "checked_at": "2026-07-07T22:51:51Z"
 }
