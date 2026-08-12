@@ -7,5 +7,5 @@
   "endpoint": "compliance-redshift-cluster.cszw4nrem7jk.us-east-1.redshift.amazonaws.com",
   "database_name": "dev",
   "availability_zone": "us-east-1a",
-  "checked_at": "2026-08-11T22:31:56Z"
+  "checked_at": "2026-08-12T22:30:28Z"
 }
