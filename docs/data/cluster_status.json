@@ -1,11 +1,12 @@
 {
   "cluster_id": "compliance-redshift-cluster",
-  "status_raw": "pausing",
-  "status_label": "Pausando",
+  "status_raw": "available",
+  "status_label": "Disponible",
   "node_type": "ra3.large",
   "number_of_nodes": 1,
   "endpoint": "compliance-redshift-cluster.cszw4nrem7jk.us-east-1.redshift.amazonaws.com",
   "database_name": "dev",
   "availability_zone": "us-east-1a",
-  "checked_at": "2026-10-28T00:49:23Z"
+  "checked_at": "2026-10-29T01:24:02Z",
+  "error": "An error occurred (InvalidClusterState) when calling the PauseCluster operation: There is an operation running on the Cluster. Please try to pause it at a later time."
 }
